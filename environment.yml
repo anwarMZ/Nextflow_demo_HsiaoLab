@@ -1,0 +1,10 @@
+name: nextflow-demo
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python
+  - salmon
+  - fastqc
+  - multiqc
