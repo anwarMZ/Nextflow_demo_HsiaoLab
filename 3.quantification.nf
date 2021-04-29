@@ -1,7 +1,7 @@
 /* 
  * pipeline input parameters 
  */
-params.reads = "$baseDir/data/gut_{1,2}.fq"
+params.reads = "$baseDir/data/*_{1,2}.fq"
 params.transcriptome = "$baseDir/data/transcriptome.fa"
 params.multiqc = "$baseDir/multiqc"
 params.outdir = "results"
@@ -24,6 +24,7 @@ transcriptome_file = file(params.transcriptome)
  * define the `index` process that create a binary index 
  * given the transcriptome file
  */
+ 
 process index {
     
     input:
@@ -38,14 +39,16 @@ process index {
     """
 }
 
-
 Channel 
     .fromFilePairs( params.reads )
     .ifEmpty { error "Cannot find any reads matching: ${params.reads}"  }
-    .set { read_pairs_ch } 
-
+    .set { read_pairs_ch}
+    
 process quantification {
-     
+
+    tag "Quantification on $sample_id"
+    publishDir "${params.outdir}/${task.process}", pattern: "*.sf", mode: 'copy'
+    
     input:
     file index from index_ch
     set pair_id, file(reads) from read_pairs_ch

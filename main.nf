@@ -24,6 +24,8 @@ transcriptome_file = file(params.transcriptome)
  * define the `index` process that create a binary index 
  * given the transcriptome file
  */
+ 
+ 
 process index {
     
     input:
@@ -42,29 +44,14 @@ process index {
 Channel 
     .fromFilePairs( params.reads )
     .ifEmpty { error "Cannot find any reads matching: ${params.reads}"  }
-    .into { read_pairs_ch; read_pairs2_ch } 
-
-process quantification {
-    tag "$pair_id"
-         
-    input:
-    file index from index_ch
-    set pair_id, file(reads) from read_pairs_ch
- 
-    output:
-    file(pair_id) into quant_ch
- 
-    script:
-    """
-    salmon quant --threads $task.cpus --libType=U -i index -1 ${reads[0]} -2 ${reads[1]} -o $pair_id
-    """
-}
-
+    .into { read_pairs_ch; read_pairs2_ch }
+    
+    
 process fastqc {
     tag "FASTQC on $sample_id"
 
     input:
-    set sample_id, file(reads) from read_pairs2_ch
+    set sample_id, file(reads) from read_pairs_ch
 
     output:
     file("fastqc_${sample_id}_logs") into fastqc_ch
@@ -76,11 +63,32 @@ process fastqc {
     fastqc -o fastqc_${sample_id}_logs -f fastq -q ${reads}
     """  
 }  
+
+
+process quantification {
+
+    tag "Quantification on $sample_id"
+    publishDir "${params.outdir}/${task.process}", pattern: "*.sf", mode: 'copy'
+    
+    input:
+    file index from index_ch
+    set pair_id, file(reads) from read_pairs2_ch
  
+    output:
+    file(pair_id) into quant_ch
+ 
+    script:
+    """
+    salmon quant --threads $task.cpus --libType=U -i index -1 ${reads[0]} -2 ${reads[1]} -o $pair_id
+    """
+}
+
 
 process multiqc {
-    publishDir params.outdir, mode:'copy'
-       
+
+    tag "MultiQC"
+    publishDir "${params.outdir}/${task.process}", mode: 'copy'
+    
     input:
     file('*') from quant_ch.mix(fastqc_ch).collect()
     
@@ -95,5 +103,5 @@ process multiqc {
 
 
 workflow.onComplete { 
-	println ( workflow.success ? "\nDone! Open the following report in your browser --> $params.outdir/multiqc_report.html\n" : "Oops .. something went wrong" )
+	println ( workflow.success ? "\nDone! Open the following report in your browser --> $params.outdir/multiqc/multiqc_report.html\n" : "Oops .. something went wrong" )
 }
