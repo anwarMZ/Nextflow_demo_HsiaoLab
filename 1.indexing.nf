@@ -26,6 +26,8 @@ transcriptome_file = file(params.transcriptome)
  */
  
 process index {
+
+    tag {"indexing_${params.transcriptome}"}
     
     input:
     file transcriptome from transcriptome_file
